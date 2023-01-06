@@ -580,7 +580,7 @@ const startBot = () => {
     const throttler = telegrafThrottler();
     bot.use(throttler);
 
-    bot.toanime((ctx) => {
+    bot.start((ctx) => {
         ctx.reply(config.messages.hello, {
             disable_web_page_preview: true,
             parse_mode: 'MarkdownV2',
