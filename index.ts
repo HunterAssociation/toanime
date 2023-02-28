@@ -273,16 +273,16 @@ const qqRequest = async (imgBuffer: Buffer) => {
             if (config.sendMedia.single || config.sendMedia.video) {
                 const uuid = extra.uuid as string;
 
-                //const videoData = await request({
-                  //  busiId: 'ai_painting_anime_video_entry',
-                 //   extra: JSON.stringify({
-                //        uuid,
-                  //      face_rects: [],
-                  //      version: 2,
-                 //       platform: 'web',
-              //      }),
-            //    });
-          //      const videoExtra = JSON.parse(videoData.extra);
+                const videoData = await request({
+                    busiId: 'ai_painting_anime_video_entry',
+                    extra: JSON.stringify({
+                        uuid,
+                        face_rects: [],
+                        version: 2,
+                        platform: 'web',
+                    }),
+                });
+                const videoExtra = JSON.parse(videoData.extra);
 
           //      if (config.sendMedia.video) {
            //         videoUrl = videoExtra.video_urls[0] as string;
