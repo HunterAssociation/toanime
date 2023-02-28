@@ -1,6 +1,6 @@
 const config: Config = {
     mode: 'DIFFERENT_DIMENSION_ME', // 'DIFFERENT_DIMENSION_ME' | 'AI_PAINTING_ANIME' | 'AIGCSDK_AI_PAINTING_ANIME'
-    botToken: 'put_your_token_here',
+    botToken: '5999247031:AAER2qHRhPIzTkDd54el68XRPyFLtmiDJi0',
     keepFiles: {
         compared: true,
         input: true,
