@@ -240,6 +240,40 @@ const qqRequest = async (imgBuffer: Buffer) => {
     let singleImg: Buffer | null = null;
 
     switch (config.mode) {
+        case 'ANIME_AI_BOT': {
+            const data = await request({
+                busiId: 'ai_painting_anime_img_entry',
+                extra: JSON.stringify({
+                    face_rects: [],
+                    version: 2,
+                    platform: 'web',
+                }),
+                images: [imgBuffer.toString('base64')],
+            });
+            const extra = JSON.parse(data.extra);
+
+            comparedImgUrl = extra.img_urls[1] as string;
+
+            if (config.sendMedia.single || config.sendMedia.video) {
+                const uuid = extra.uuid as string;
+
+                const videoData = await request({
+                    busiId: 'ai_painting_anime_video_entry',
+                    extra: JSON.stringify({
+                        uuid,
+                        face_rects: [],
+                        version: 2,
+                        platform: 'web',
+                    }),
+                });
+                const videoExtra = JSON.parse(videoData.extra);
+
+                if (config.sendMedia.single) {
+                    singleImgUrl = videoExtra.img_urls[2] as string;
+                }
+            }
+            break;
+        }
         case 'DIFFERENT_DIMENSION_ME': {
             const data = await request({
                 busiId: 'different_dimension_me_img_entry',
