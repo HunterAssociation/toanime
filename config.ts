@@ -9,7 +9,9 @@ const config: Config = {
     },
     messages: {
         blocked: 'This bot is maintenance, please try again in a few moments.',
-        hello: 'Hi There 👋 \nSend me a photo to convert it into a 2D anime art.',
+        hello: 
+              'Hi There 👋\n' +
+              'Send me a photo to convert it into a 2D anime art.',
         media: 'Via @AnimeAiToanimeBot',
         received: '`Processing...`',
     },
