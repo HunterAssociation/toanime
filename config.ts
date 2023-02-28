@@ -23,7 +23,7 @@ const config: Config = {
     },
     parallelRequests: 10,
     // Uncomment the line below and set your proxy if you need it.
-    // proxyUrl: 'socks5://user:password@11.22.33.44:1234',
+    // proxyUrl: 'socks5://134.195.90.170:32127',
 };
 
 export default config;
