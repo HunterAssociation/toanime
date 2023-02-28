@@ -10,7 +10,7 @@ const config: Config = {
     messages: {
         blocked: 'The Chinese website has blocked the bot, too bad 🤷‍♂️',
         hello: 'Hi There 👋 \nSend me a photo to convert it into a 2D anime art.',
-        media: '',
+        media: '`Via @`',
         received: '`Processing...`',
     },
     sendMedia: {
