@@ -612,16 +612,7 @@ const onPhotoReceived = async (ctx: Context, userId: number, photoId: string, re
             throw new Error(`Unable to send media, please try again: ${errorsMgs}`);
         }
 
-        if (config.messages.bye && currentUserStatus.requestsCount === 1) {
-            try {
-                await ctx.reply(config.messages.bye, {
-                    disable_web_page_preview: true,
-                    parse_mode: 'MarkdownV2',
-                });
-            } catch (e) {
-                console.error('Unable to send byeMessage for ' + userId, (e as Error).toString());
-            }
-        }
+        
     } catch (e) {
         console.log('Error has occurred for ' + userId);
         console.error(e);
