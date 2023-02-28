@@ -1,7 +1,6 @@
 import { Telegraf, Context } from 'telegraf';
 import { telegrafThrottler } from 'telegraf-throttler';
 import config from './config';
-import { v4 as v4uuid } from 'uuid';
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
@@ -15,8 +14,6 @@ import asyncRetry from 'async-retry';
 if (!Object.values(config.sendMedia).some(((value) => value))) {
     throw new Error('Set at least one of "sendMedia" options in your config to "true"');
 }
-
-const QQ_MODE = config.mode ?? (config.proxyUrl ? 'CHINA' : 'WORLD');
 
 let httpsAgent: HttpsProxyAgent | SocksProxyAgent | undefined;
 if (config.proxyUrl) {
@@ -144,100 +141,181 @@ const signV1 = (obj: Record<string, unknown>) => {
 };
 
 const qqRequest = async (imgBuffer: Buffer) => {
-    const obj = {
-        busiId: QQ_MODE === 'WORLD' ? 'different_dimension_me_img_entry' : 'ai_painting_anime_entry',
-        extra: JSON.stringify({
-            face_rects: [],
-            version: 2,
-            platform: 'web',
-            data_report: {
-                parent_trace_id: v4uuid(),
-                root_channel: '',
-                level: 0,
-            },
-        }),
-        images: [imgBuffer.toString('base64')],
-    };
-    const sign = signV1(obj);
+    const request = async (obj: Record<string, unknown>) => {
+        const sign = signV1(obj);
 
-    let extra;
-    try {
-        extra = await asyncRetry(
-            async (bail) => {
-                const response = await axios.request({
-                    httpsAgent,
-                    method: 'POST',
-                    url: 'https://ai.tu.qq.com/trpc.shadow_cv.ai_processor_cgi.AIProcessorCgi/Process',
-                    data: obj,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Origin': 'https://h5.tu.qq.com',
-                        'Referer': 'https://h5.tu.qq.com/',
-                        'User-Agent':
-                            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
-                        'x-sign-value': sign,
-                        'x-sign-version': 'v1',
-                    },
-                    timeout: 30000,
-                });
+        let url = 'https://ai.tu.qq.com/overseas/trpc.shadow_cv.ai_processor_cgi.AIProcessorCgi/Process';
+        if (config.mode === 'AI_PAINTING_ANIME') {
+            url = 'https://ai.tu.qq.com/trpc.shadow_cv.ai_processor_cgi.AIProcessorCgi/Process';
+        }
 
-                const data = response?.data as Record<string, unknown> | undefined;
+        let data;
+        try {
+            data = await asyncRetry(
+                async (bail) => {
+                    const response = await axios.request({
+                        httpsAgent,
+                        method: 'POST',
+                        url,
+                        data: obj,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Origin': 'https://h5.tu.qq.com',
+                            'Referer': 'https://h5.tu.qq.com/',
+                            // eslint-disable-next-line max-len
+                            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
+                            'x-sign-value': sign,
+                            'x-sign-version': 'v1',
+                        },
+                        timeout: 30000,
+                    });
 
-                if (!data) {
-                    throw new Error('No data');
-                }
+                    const data = response?.data as Record<string, unknown> | undefined;
 
-                if (data.msg === 'VOLUMN_LIMIT') {
-                    throw new Error('QQ rate limit caught');
-                }
+                    if (!data) {
+                        throw new Error('No data');
+                    }
 
-                if (data.msg === 'IMG_ILLEGAL') {
-                    bail(new Error('Couldn\'t pass the censorship. Try another photo.'));
-                    return;
-                }
+                    if (data.msg === 'VOLUMN_LIMIT') {
+                        throw new Error('QQ rate limit caught');
+                    }
 
-                if (data.code === 1001) {
-                    bail(new Error('Face not found. Try another photo.'));
-                    return;
-                }
+                    if ((data.msg as string || '').includes('polaris limit')) {
+                        throw new Error('QQ rate limit caught (polaris limit)');
+                    }
 
-                if (data.code === -2100) { // request image is invalid
-                    bail(new Error('Try another photo.'));
-                    return;
-                }
+                    if (data.msg === 'IMG_ILLEGAL') {
+                        bail(new Error('Couldn\'t pass the censorship. Try another photo.'));
+                        return;
+                    }
 
-                if (
-                    data.code === 2119 || // user_ip_country | service upgrading
-                    data.code === -2111 // AUTH_FAILED
-                ) {
-                    console.error('Blocked', JSON.stringify(data));
-                    bail(new Error(config.messages.blocked));
-                    return;
-                }
+                    if (data.code === 1001) {
+                        bail(new Error('Face not found. Try another photo.'));
+                        return;
+                    }
 
-                if (!data.extra) {
-                    throw new Error('Got no data from QQ: ' + JSON.stringify(data));
-                }
+                    // "request image is invalid"
+                    // or
+                    // "the busi_id: <*> is not servered in this set group"
+                    if (data.code === -2100) {
+                        console.error('Invalid request', JSON.stringify(data));
+                        bail(new Error('Try another photo.'));
+                        return;
+                    }
 
-                return JSON.parse(data.extra as string);
-            },
-            {
-                onRetry(e, attempt) {
-                    console.error(`QQ file upload error caught (attempt #${attempt}): ${e.toString()}`);
+                    if (
+                        data.code === 2119 || // user_ip_country | service upgrading
+                        data.code === -2111 // AUTH_FAILED
+                    ) {
+                        console.error('Blocked', JSON.stringify(data));
+                        bail(new Error(config.messages.blocked));
+                        return;
+                    }
+
+                    if (!data.extra) {
+                        throw new Error('Got no data from QQ: ' + JSON.stringify(data));
+                    }
+
+                    return data;
                 },
-                retries: 10,
-                factor: 1,
-            },
-        );
-    } catch (e) {
-        console.error(`QQ file upload error caught: ${(e as Error).toString()}`);
-        throw new Error(`Unable to upload the photo: ${(e as Error).toString()}`);
+                {
+                    onRetry(e, attempt) {
+                        console.error(`QQ file upload error caught (attempt #${attempt}): ${e.toString()}`);
+                    },
+                    retries: 10,
+                    factor: 1,
+                },
+            );
+        } catch (e) {
+            console.error(`QQ file upload error caught: ${(e as Error).toString()}`);
+            throw new Error(`Unable to upload the photo: ${(e as Error).toString()}`);
+        }
+
+        return data as Record<string, unknown> & { extra: string };
+    };
+
+    let comparedImgUrl: string | null = null;
+    let videoUrl: string | null = null;
+    let singleImgUrl: string | null = null;
+    let singleImg: Buffer | null = null;
+
+    switch (config.mode) {
+        case 'DIFFERENT_DIMENSION_ME': {
+            const data = await request({
+                busiId: 'different_dimension_me_img_entry',
+                extra: JSON.stringify({
+                    face_rects: [],
+                    version: 2,
+                    platform: 'web',
+                }),
+                images: [imgBuffer.toString('base64')],
+            });
+            const extra = JSON.parse(data.extra);
+
+            comparedImgUrl = extra.img_urls[1] as string;
+            break;
+        }
+
+        case 'AI_PAINTING_ANIME': {
+            const data = await request({
+                busiId: 'ai_painting_anime_img_entry',
+                extra: JSON.stringify({
+                    face_rects: [],
+                    version: 2,
+                    platform: 'web',
+                }),
+                images: [imgBuffer.toString('base64')],
+            });
+            const extra = JSON.parse(data.extra);
+
+            comparedImgUrl = extra.img_urls[1] as string;
+
+            if (config.sendMedia.single || config.sendMedia.video) {
+                const uuid = extra.uuid as string;
+
+                const videoData = await request({
+                    busiId: 'ai_painting_anime_video_entry',
+                    extra: JSON.stringify({
+                        uuid,
+                        face_rects: [],
+                        version: 2,
+                        platform: 'web',
+                    }),
+                });
+                const videoExtra = JSON.parse(videoData.extra);
+
+                if (config.sendMedia.video) {
+                    videoUrl = videoExtra.video_urls[0] as string;
+                }
+
+                if (config.sendMedia.single) {
+                    singleImgUrl = videoExtra.img_urls[2] as string;
+                }
+            }
+            break;
+        }
+
+        case 'AIGCSDK_AI_PAINTING_ANIME': {
+            const data = await request({
+                busiId: 'aigcsdk_ai_painting_anime_img_entry',
+                extra: JSON.stringify({
+                    face_rects: [],
+                    version: 2,
+                    platform: 'web',
+                }),
+                images: [imgBuffer.toString('base64')],
+            });
+
+            singleImg = Buffer.from((data.images as [string, string])[1], 'base64');
+            break;
+        }
     }
 
     return {
-        videoUrl: QQ_MODE === 'CHINA' ? (extra.video_urls[0] as string) : undefined,
-        comparedImgUrl: extra.img_urls[1] as string,
-        singleImgUrl: QQ_MODE === 'CHINA' ? (extra.img_urls[2] as string) : undefined,
+        comparedImgUrl,
+        videoUrl,
+        singleImgUrl,
+        singleImg,
     };
 };
 
@@ -248,8 +326,9 @@ const qqDownload = async (url: string): Promise<Buffer> => {
             async () => {
                 const response = await axios.request({
                     url,
-                    timeout: 7000,
+                    timeout: 10000,
                     responseType: 'arraybuffer',
+                    httpsAgent,
                 });
 
                 if (!response.data) {
@@ -274,7 +353,18 @@ const qqDownload = async (url: string): Promise<Buffer> => {
     return data;
 };
 
-const userSessions: Array<UserSession> = [];
+const usersStatuses: Record<number, {
+    requestsCount: number;
+    requestsOverflow: boolean;
+}> = {};
+
+const getUsersRequestCount = () => {
+    return Object.values(usersStatuses).reduce((acc, s) => acc + s.requestsCount, 0);
+};
+
+const printUsersStatuses = () => {
+    console.log(`Users: ${Object.keys(usersStatuses).length} | Requests: ${getUsersRequestCount()}`);
+};
 
 const cropImage = async (imgData: Buffer, type: 'COMPARED' | 'SINGLE'): Promise<Buffer> => {
     const img = sharp(imgData);
@@ -307,7 +397,27 @@ const cropImage = async (imgData: Buffer, type: 'COMPARED' | 'SINGLE'): Promise<
         .toBuffer();
 };
 
-const processUserSession = async ({ ctx, userId, photoId, replyMessageId }: UserSession) => {
+const onPhotoReceived = async (ctx: Context, userId: number, photoId: string, replyMessageId: number) => {
+    usersStatuses[userId] ??= {
+        requestsCount: 0,
+        requestsOverflow: false,
+    };
+
+    const currentUserStatus = usersStatuses[userId];
+    if (currentUserStatus.requestsCount >= config.parallelRequests) {
+        console.log('Request rejected for ' + userId);
+        if (!currentUserStatus.requestsOverflow) {
+            currentUserStatus.requestsOverflow = true;
+            await ctx.reply('You send too many pictures, please wait', {
+                reply_to_message_id: replyMessageId,
+            });
+        }
+        return;
+    }
+
+    currentUserStatus.requestsCount++;
+    printUsersStatuses();
+
     try {
         let url: URL;
         try {
@@ -374,13 +484,13 @@ const processUserSession = async ({ ctx, userId, photoId, replyMessageId }: User
         }
 
         console.log('Uploading to QQ for ' + userId);
-        let urls;
+        let imgData;
         try {
-            urls = await qqRequest(telegramFileData);
+            imgData = await qqRequest(telegramFileData);
         } catch (e) {
             if ((e as Error).toString().includes('Face not found')) { // TODO: it shouldn't rely on the text
                 console.log('Face not found, trying to hack for ' + userId);
-                urls = await qqRequest((await faceHack(telegramFileData)));
+                imgData = await qqRequest((await faceHack(telegramFileData)));
             } else {
                 throw e;
             }
@@ -389,14 +499,13 @@ const processUserSession = async ({ ctx, userId, photoId, replyMessageId }: User
 
         console.log('Downloading from QQ for ' + userId);
         const [comparedImgData, singleImgData, videoData] = await Promise.all([
-            config.sendMedia.compared ?
-                qqDownload(urls.comparedImgUrl).then((data) => cropImage(data, 'COMPARED')) : null,
+            imgData.comparedImgUrl ? qqDownload(imgData.comparedImgUrl).then((data) => cropImage(data, 'COMPARED')) : null,
 
-            (config.sendMedia.single && QQ_MODE === 'CHINA') ?
-                qqDownload(urls.singleImgUrl || '').then((data) => cropImage(data, 'SINGLE')) : null,
+            imgData.singleImgUrl ?
+                qqDownload(imgData.singleImgUrl).then((data) => cropImage(data, 'SINGLE')) :
+                (imgData.singleImg ?? null),
 
-            (config.sendMedia.video && QQ_MODE === 'CHINA') ?
-                qqDownload(urls.videoUrl || '') : null,
+            imgData.videoUrl ? qqDownload(imgData.videoUrl) : null,
         ]);
 
         const time = (new Date()).getTime();
@@ -502,7 +611,7 @@ const processUserSession = async ({ ctx, userId, photoId, replyMessageId }: User
             throw new Error(`Unable to send media, please try again: ${errorsMgs}`);
         }
 
-        if (config.messages.bye) {
+        if (config.messages.bye && currentUserStatus.requestsCount === 1) {
             try {
                 await ctx.reply(config.messages.bye, {
                     disable_web_page_preview: true,
@@ -520,7 +629,12 @@ const processUserSession = async ({ ctx, userId, photoId, replyMessageId }: User
             await asyncRetry(
                 async (bail) => {
                     try {
-                        await ctx.reply('Some nasty error has occurred, please try again\n\n' + (e as Error).toString());
+                        await ctx.reply(
+                            'Some nasty error has occurred, please try again\n\n' + (e as Error).toString(),
+                            {
+                                reply_to_message_id: replyMessageId,
+                            },
+                        );
                     } catch (e) {
                         if ((e as Error).toString().includes('was blocked by the user')) {
                             bail(new Error('Bot was blocked by the user'));
@@ -543,33 +657,16 @@ const processUserSession = async ({ ctx, userId, photoId, replyMessageId }: User
         }
     }
 
-    const currentSessionIndex = userSessions.findIndex((session) => session.userId === userId);
-    userSessions.splice(currentSessionIndex, 1);
-    console.log('Sessions length decreased: ' + userSessions.length);
+    currentUserStatus.requestsCount--;
+    currentUserStatus.requestsOverflow = false;
+    if (currentUserStatus.requestsCount === 0) {
+        delete usersStatuses[userId];
+    }
+    printUsersStatuses();
+
     if (shuttingDown) {
         tryToShutDown();
     }
-};
-
-const addUserSession = async (ctx: Context, userId: number, photoId: string, replyMessageId: number) => {
-    const currentSession = (userSessions.find((session) => session.userId === userId));
-    if (currentSession) {
-        await ctx.reply('You are already in the queue, please wait', {
-            reply_to_message_id: replyMessageId,
-        });
-        return;
-    }
-
-    const session = {
-        ctx,
-        userId,
-        photoId,
-        replyMessageId,
-    };
-    userSessions.push(session);
-    console.log('Sessions length increased: ' + userSessions.length);
-
-    await processUserSession(session);
 };
 
 let bot: Telegraf;
@@ -577,7 +674,9 @@ let bot: Telegraf;
 const startBot = () => {
     bot = new Telegraf(config.botToken);
 
-    const throttler = telegrafThrottler();
+    const throttler = telegrafThrottler({
+        in: {},
+    });
     bot.use(throttler);
 
     bot.start((ctx) => {
@@ -592,10 +691,12 @@ const startBot = () => {
 
     bot.on('photo', (ctx) => {
         const userId = ctx.update.message.from.id;
-        console.log('Received photo from ' + userId);
+        const name = ((ctx.message.from.first_name || '') + ' ' + (ctx.message.from.last_name || '')).trim();
+        const username = ctx.message.from.username ? ('@' + ctx.message.from.username) : '<none>';
+        console.log(`Received photo from id: ${userId}, username: ${username}, name: ${name}`);
 
         const photoId = [...ctx.update.message.photo].pop()?.file_id || '';
-        addUserSession(ctx, userId, photoId, ctx.update.message.message_id).catch(e => e);
+        onPhotoReceived(ctx, userId, photoId, ctx.update.message.message_id).catch(e => e);
     });
 
     bot.catch((e) => {
@@ -618,7 +719,7 @@ let shuttingDown = false;
 let tryToShutDown: () => void;
 
 if (cluster.isPrimary) {
-    console.log('Current mode:', QQ_MODE);
+    console.log('Current mode:', config.mode);
 
     let hasWorker = false;
 
@@ -660,7 +761,7 @@ if (cluster.isPrimary) {
         }
         shuttingDown = true;
 
-        if (!userSessions.length) {
+        if (!getUsersRequestCount()) {
             process.exit();
         }
     };

@@ -19,16 +19,22 @@ Clone this repo and:
 - put your bot's token from BotFather into `config.ts`
 - run `npm start`
 
-# Mode and proxies
+# Mode
+There's option `mode` in `config.ts` which currently takes two values:
+
+- `DIFFERENT_DIMENSION_ME` - default one, has rate limits, could generate only double compared images.
+- `AI_PAINTING_ANIME` - a little hack, has rate limits (already) and lets you also generate videos and single images that have better quality than combined ones. Seems like it works only with Chinese proxies.
+- `AIGCSDK_AI_PAINTING_ANIME` - another hack that generates single images much faster and has lower rate limits (yet).
+
+**Remember that all modes are unstable and their behavior may change at any time!**
+
+# Proxies
 In some countries the AI doesn't work at all so if it is your case you have to use some proxy.
 
-In China it works even another way and lets you generate videos and single images that have better quality than combined ones.
+Seems like Chinese proxies are the best.
+But not from Taiwan or Hong Kong, try Beijing for example.
 
-For the Chinese way you have to set `mode` in your config to `'CHINA'`, otherwise it must be `'WORLD'`
-
-For `mode: 'CHINA'` you obviously need Chinese proxy if you don't live there. So in that case:
-- Your proxy must be exactly Chinese, but not from Taiwan or Hong Kong, try Beijing for example.
-- Seems like it's impossible to find FREE alive proxies. Don't waste your time searching and just buy it somewhere.
+It's almost impossible to find free alive proxies. Don't waste your time searching and just buy it somewhere.
 
 # Notes
 - Probably the whole thing is going to break soon anyway.
@@ -37,6 +43,10 @@ For `mode: 'CHINA'` you obviously need Chinese proxy if you don't live there. So
 
 # Upgrading
 Don't forget to always run `npm install`
+
+### from 3.x to 4.x
+- change your `'mode'` in `config.ts` to a new one
+- `'parallelRequests'` is not optional anymore
 
 ### from 2.x to 3.x
 - `config.ts` file structure has been changed completely, update it according to the new `config.example.ts`

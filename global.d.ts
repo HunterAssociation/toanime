@@ -1,8 +1,8 @@
-import type { Context } from 'telegraf';
+export {};
 
 declare global {
     type Config = {
-        mode?: 'CHINA' | 'WORLD';
+        mode: 'DIFFERENT_DIMENSION_ME' | 'AI_PAINTING_ANIME' | 'AIGCSDK_AI_PAINTING_ANIME';
         botToken: string;
         keepFiles: {
             compared: boolean;
@@ -17,6 +17,7 @@ declare global {
             media: string;
             received: string;
         };
+        parallelRequests: number;
         proxyUrl?:
             `socks5://${string}:${string}@${string}:${number}` |
             `socks5://${string}:${number}` |
@@ -27,12 +28,5 @@ declare global {
             single: boolean;
             video: boolean;
         };
-    };
-
-    type UserSession = {
-        ctx: Context;
-        userId: number;
-        photoId: string;
-        replyMessageId: number;
     };
 }

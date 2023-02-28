@@ -1,5 +1,5 @@
 const config: Config = {
-    mode: 'WORLD', // 'CHINA' | 'WORLD'
+    mode: 'DIFFERENT_DIMENSION_ME', // 'DIFFERENT_DIMENSION_ME' | 'AI_PAINTING_ANIME' | 'AIGCSDK_AI_PAINTING_ANIME'
     botToken: 'put_your_token_here',
     keepFiles: {
         compared: true,
@@ -17,10 +17,12 @@ const config: Config = {
         received: 'Photo has been received, please wait',
     },
     sendMedia: {
-        compared: true,
-        single: true, // works only with mode=CHINA
-        video: true, // works only with mode=CHINA
+        compared: true, // works only with DIFFERENT_DIMENSION_ME (high rate limits) and AI_PAINTING_ANIME (high rate limits)
+        single: true, // works only with AIGCSDK_AI_PAINTING_ANIME (fast) and AI_PAINTING_ANIME (slow + high rate limits)
+        video: true, // works only with AI_PAINTING_ANIME (slow + high rate limits)
     },
+    parallelRequests: 10,
+    // Uncomment the line below and set your proxy if you need it.
     // proxyUrl: 'socks5://user:password@11.22.33.44:1234',
 };
 
