@@ -12,7 +12,6 @@ declare global {
         };
         messages: {
             blocked: string;
-            bye: string;
             hello: string;
             media: string;
             received: string;
