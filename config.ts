@@ -11,7 +11,7 @@ const config: Config = {
         blocked: 'This bot is maintenance, please try again in a few moments.',
         hello: 
               'Hi There 👋\n' +
-              'Send me a photo to convert it into a 2D anime art.',
+              'Send me a photo to convert it into a 2D anime art',
         media: 'Via @AnimeAiToanimeBot',
         received: '`Processing...`',
     },
