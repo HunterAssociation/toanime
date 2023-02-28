@@ -9,12 +9,9 @@ const config: Config = {
     },
     messages: {
         blocked: 'The Chinese website has blocked the bot, too bad 🤷‍♂️',
-        bye:
-            'Thank you for using this bot 👍\n' +
-            'Please rate and fork it on [Github](https://github.com/lmcsu/qq-neural-anime-tg) ♥️',
-        hello: 'Hi 👋 Send me a photo to convert it into a 2D anime art',
-        media: '@qq\\_neural\\_anime\\_bot',
-        received: 'Photo has been received, please wait',
+        hello: 'Hi There 👋 \nSend me a photo to convert it into a 2D anime art.',
+        media: '',
+        received: '`Processing...`',
     },
     sendMedia: {
         compared: true, // works only with DIFFERENT_DIMENSION_ME (high rate limits) and AI_PAINTING_ANIME (high rate limits)
