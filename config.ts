@@ -8,7 +8,7 @@ const config: Config = {
         video: true,
     },
     messages: {
-        blocked: 'The Chinese website has blocked the bot, too bad 🤷‍♂️',
+        blocked: 'This bot is maintenance, please try again in a few moments.',
         hello: 'Hi There 👋 \nSend me a photo to convert it into a 2D anime art.',
         media: 'Via @AnimeAiToanimeBot',
         received: '`Processing...`',
